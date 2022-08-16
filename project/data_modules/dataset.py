@@ -1,3 +1,21 @@
+"""
+Datasets are based on the PyTorch ``torch.utils.data.Dataset`` data
+primitive. They store the samples and their corresponding labels. Pytorch
+domain libraries (e.g., vision, text, audio) provide pre-loaded datasets (e.g.,
+MNIST) that subclass ``torch.utils.data.Dataset`` and implement functions
+specific to the particular data. They can be used to prototype and benchmark
+your model. You can find them at
+[Image Datasets](https://pytorch.org/vision/stable/datasets.html),
+[Text Datasets](https://pytorch.org/text/stable/datasets.html), and
+[Audio Datasets](https://pytorch.org/audio/stable/datasets.html).
+
+This module implements an abstract base class `BaseVisionDataset` for vision
+datasets. It also replicates the official PyTorch image folder
+(https://github.com/pytorch/vision/blob/master/torchvision/datasets/folder.py)
+so it can inherent from `BaseVisionDataset` and have extended functionality.
+"""
+
+
 import logging
 import sys
 import os
@@ -21,8 +39,50 @@ OneSample = Union[Dict[str, Tuple[Any, ...]], Tuple[Any, ...]]
 
 class DepDataModule(radata.BaseVisionDataset):
     """
-    This class will be based on the folder dataset
+    This class will be based on the FolderDataset
     in radio for our specific project
+    
+    Folder dataset
+    
+    Attributes
+    ----------
+    classes : list
+        List of the class names sorted alphabetically.
+    num_classes : int
+        Number of classes in the dataset.
+    class_to_idx : dict
+        Dict with items (class_name, class_index).
+    samples : list
+        List of (sample, class_index) tuples.
+    targets : list
+        The class_index value for each image in the dataset.
+        
+    Parameters
+    ----------
+    root : Path or str
+        Data root directory. Where to save/load the data.
+    loader : Callable
+        A function to load a sample given its path.
+    transform : Optional[Callable]
+        A function/transform that takes in a sample and returns a
+        transformed version, e.g, ``torchvision.transforms.RandomCrop`` for
+        images.
+    target_transform : Callable[Optional]
+        Optional function/transform that takes in a target and returns a
+        transformed version.
+    extensions : Tuple[str]
+        A list of allowed extensions.
+    is_valid_file :  Optional[Callable[[Path], bool]]
+        A function that takes path of a file and check if the file is a
+        valid file (used to check of corrupt files).
+    return_paths : bool
+        If True, calling the dataset returns `(sample, target, /path/to/sample,
+        /path/to/target)` instead of returning `(sample, target)`.
+        
+    Notes
+    -----
+    Both `extensions` and `is_valid_file` cannot be None or not None at the
+    same time.
     """
 
     def __init__(
@@ -137,6 +197,7 @@ class DepDataModule(radata.BaseVisionDataset):
     ) -> Sample:
         """
         Generates a list of images of a form (path_to_sample, class).
+        
         This can be overridden to e.g. read files from a compressed zip file
         instead of from the disk.
 
@@ -167,6 +228,7 @@ class DepDataModule(radata.BaseVisionDataset):
         """
 
         instances: Sample = []
+        
         for subjectID in subject_list:
             # get scanID
             index = np.where(target["subjectID"] == subjectID)[0]
