@@ -1,0 +1,86 @@
+---
+title: "pet-path-processing"
+author: "Anzu Sekikawa"
+date: '2022-08-30'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+
+library(tibble)
+
+library(tidyverse)
+
+library(dplyr)
+
+```
+
+
+```{r}
+
+raw <- read.csv("pib-files.txt", sep="/", header=FALSE)
+
+# View(raw)
+
+raw <- raw %>%
+  rename(
+    PTID = V1,
+    pib_subfolder = V2,
+    pib_date = V3, 
+    pib_num = V4,
+    pib_file_name = V5
+  )
+
+raw$ADNIPET <- rep("ADNIPET", each=nrow(raw))
+raw$MRI_PIB <- rep("MRI_PIB", each=nrow(raw))
+raw$ADNI <- rep("ADNI", each=nrow(raw))
+
+pib_raw_uniq <- raw %>% distinct(PTID,.keep_all=TRUE)
+
+# View(pib_raw_uniq)
+
+# names(pib_raw_uniq)
+
+pib_raw_uniq <- pib_raw_uniq[, c("ADNIPET","MRI_PIB","ADNI","PTID",
+                                 "pib_subfolder",
+                                 "pib_date","pib_num","pib_file_name")]
+
+pib_fullpath <- pib_raw_uniq %>%
+  unite('pib_fullpath', sep="/")
+
+pib_df <- pib_raw_uniq[, c("PTID","pib_subfolder","pib_date","pib_num","pib_file_name")]
+
+pib_df$pib_full_path <- pib_fullpath$pib_fullpath
+
+# write.csv(pib_fullpath, file="pib-fullpaths.txt", quote=FALSE, row.names=FALSE)
+
+#View(raw_uniq)
+
+#View(pib_df)
+
+mprage_df <- read.csv("mprage_df.csv")
+
+# View(mprage_df)
+
+# CREATER MASTER DataFrame:
+
+merged <- merge( mprage_df, pib_df, by="PTID" )
+
+# View(merged)
+
+# write.csv(merged, file="mprage_pib_paths.csv", row.names=FALSE)
+
+
+
+
+```
+
+
+```{r}
+```
+

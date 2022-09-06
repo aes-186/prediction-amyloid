@@ -1,54 +1,46 @@
 
-from datetime import datetime
-import os
-import tempfile
-from glob import glob
-
 import torch
 from torch.utils.data import random_split, DataLoader
-import monai
 import pandas as pd
 import torchio as tio
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
-import seaborn as sns
+import os
+import logging
 
 
-# set up data directory 
+#TODO: set this
+root_dir = ""
 
-# directory = os.environ.get()
-
-# "data/ADNIPET/MRI_PIB/ADNI"
-
-# root_dir = 
-
-# print(root_dir)
-
-class AmyloidPredictionDataModule( pl.LightningDataModule):
+class AmyloidPredictionDataModule( pl.LightningDataModule ):
     
     def __init__(self, batch_size, train_val_ratio ):
+        
         super().__init__()
         
+        # reading in csv with subj info and paths
+        #logging.info("Reading.. mprage_pib_paths.csv")
+        self.df = pd.read_csv( "../data/mprage_pib_paths.csv" )
+        
+        #logging.info("Reading subject list " + self.df.PTID)
+        self.subjectIDs = self.df.PTID 
+        
         self.batch_size = batch_size
-        
-        #TODO: edit this
-        self.base_dir = "root_dir"
-        
-        #TODO: edit this
-        self.dataset_dir = os.path.join( "root_dir", "id??" ) 
         
         self.train_val_ratio = train_val_ratio 
         
         self.subjects = None
-        
         self.test_subjects = None
+        
         self.preprocess = None
         self.transform = None
+        
         self.train_set = None
         self.val_set = None
         self.test_set = None
         
     def get_max_shape( self, subjects ):
+        
         import numpy as np 
         
         # SubjectsDataset is subclass of torch.data.utils.Dataset 
@@ -58,19 +50,21 @@ class AmyloidPredictionDataModule( pl.LightningDataModule):
         
         return shapes.max(axis=0)
 
-    def download_data(self):
-        
-        image_training_paths = ""
-        image_test_paths = ""
-        return image_training_paths, image_test_paths
+    # def download_data(self):
+        #image_training_paths = ""
+        #image_test_paths = ""
+        #label_test_paths = ""
+        #label_training_paths = ""
+        #return image_training_paths, image_test_paths, label_test_paths, label_training_paths
     
     def prepare_data(self):
         
-        image_training_paths, image_test_paths = self.download_data() 
+        mr_dict = zip( self.df.PTID, self.df.MPRAGE_FULL_PATH )
+        pib_dict = zip( self.df.PTID, self.df.pib_full_path )
         
         self.subjects = [] 
         
-        for image_path in image_training_paths:
+        for ptid in self.subjectIDs:
             
             # creating instance of tio.Subject 
             # Image file, can be any format supported by SimpleITK or NiBabel
@@ -78,18 +72,29 @@ class AmyloidPredictionDataModule( pl.LightningDataModule):
             # can be .nii
             # can be created using PyTorch tensors or NumPy arrays 
             subject = tio.Subject(
-                image = tio.ScalarImage( image_path ) 
+                
+                # is this inefficient (?)
+                
+                mprage = tio.ScalarImage( mr_dict[ ptid ] ),
+                pet = tio.LabelMap( pib_dict[ ptid ] ),
                 
                 # other attributes can be set here 
+                PTID = ptid
             )
             self.subjects.append(subject) 
         
+        ''' 
         self.test_subjects = [] 
+        
         for image_path in image_test_paths:
-            subject = tio.Subject( image=tio.ScalarImage(image_path))
+            subject = tio.Subject( 
+                mprage = tio.ScalarImage(image_path),             
+            )
             self.test_subjects.append(subject) 
+        '''
         
     def setup(self, stage=None):
+        
         num_subjects = len(self.subjects)
         num_train_subjects = int( round(num_subjects*self.train_val_ratio))
         num_val_subjects = num_subjects - num_train_subjects 
@@ -98,7 +103,8 @@ class AmyloidPredictionDataModule( pl.LightningDataModule):
         
         self.train_set = tio.SubjectsDataset( train_subjects )   
         self.val_set = tio.SubjectsDataset( val_subjects )
-        self.test_set = tio.SubjectsDataset( self.test_subjects ) 
+        
+        # self.test_set = tio.SubjectsDataset( self.test_subjects ) 
     
     def train_dataloader(self):
         return DataLoader( self.train_set, self.batch_size, num_workers=2)
@@ -106,9 +112,11 @@ class AmyloidPredictionDataModule( pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader( self.val_set, self.batch_size, num_workers = 2 )
         
-        
+    
+    ''' 
     def test_dataloader(self):
         return DataLoader( self.test_set, self.batch_size, num_workers=2)
+    '''
 
 
 class Model(pl.LightningModule):
@@ -142,6 +150,7 @@ class Model(pl.LightningModule):
         loss = self.criterion(y_hat, y)
         self.log('val_loss', loss)
         return loss
+
     
     
         
