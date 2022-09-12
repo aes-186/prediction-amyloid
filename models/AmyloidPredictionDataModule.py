@@ -9,15 +9,15 @@ import os
 import logging
 
 
-#TODO: set this
-root_dir = ""
-
 class AmyloidPredictionDataModule( pl.LightningDataModule ):
     
-    def __init__(self, batch_size, train_val_ratio ):
+    def __init__(self, batch_size, train_val_ratio, root_path ):
         
         super().__init__()
+         
+        self.root_path = root_path
         
+        # TODO: change this (?) 
         # reading in csv with subj info and paths
         #logging.info("Reading.. mprage_pib_paths.csv")
         self.df = pd.read_csv( "../data/mprage_pib_paths.csv" )
@@ -30,6 +30,7 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
         self.train_val_ratio = train_val_ratio 
         
         self.subjects = None
+        
         self.test_subjects = None
         
         self.preprocess = None
@@ -46,7 +47,7 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
         # SubjectsDataset is subclass of torch.data.utils.Dataset 
         dataset = tio.SubjectsDataset(subjects)
         
-        shapes = np.array([s.spatial_shape for s in dataset])
+        shapes = np.array( [s.spatial_shape for s in dataset] )
         
         return shapes.max(axis=0)
 
@@ -71,16 +72,24 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
             # can be dicom_folder
             # can be .nii
             # can be created using PyTorch tensors or NumPy arrays 
+            
+            #  mr_dict[ ptid ] = ADNIPET/MRI_PIB/ADNI/005_S_0223/MP-RAGE/...
+            
+            mprage_path = self.root_path + mr_dict[ ptid ]
+            pet_path = self.root_path + pib_dict[ ptid ]
+             
             subject = tio.Subject(
                 
-                # is this inefficient (?)
-                
-                mprage = tio.ScalarImage( mr_dict[ ptid ] ),
-                pet = tio.LabelMap( pib_dict[ ptid ] ),
+                # TODO: check this
+                transforms = None,                
+               
+                mprage = tio.ScalarImage( mprage_path ),
+                pet = tio.LabelMap( pet_path ),
                 
                 # other attributes can be set here 
                 PTID = ptid
             )
+            
             self.subjects.append(subject) 
         
         ''' 
@@ -96,15 +105,21 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
     def setup(self, stage=None):
         
         num_subjects = len(self.subjects)
+        
         num_train_subjects = int( round(num_subjects*self.train_val_ratio))
+        
         num_val_subjects = num_subjects - num_train_subjects 
+        
         splits = num_train_subjects, num_val_subjects 
+        
         train_subjects, val_subjects = random_split(self.subjects, splits) 
         
         self.train_set = tio.SubjectsDataset( train_subjects )   
+        
         self.val_set = tio.SubjectsDataset( val_subjects )
         
-        # self.test_set = tio.SubjectsDataset( self.test_subjects ) 
+        # TODO: change later - self.test_subjects
+        self.test_set = tio.SubjectsDataset( val_subjects ) 
     
     def train_dataloader(self):
         return DataLoader( self.train_set, self.batch_size, num_workers=2)
@@ -113,43 +128,11 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
         return DataLoader( self.val_set, self.batch_size, num_workers = 2 )
         
     
-    ''' 
+    # TODO: change later - self.test_subjects
     def test_dataloader(self):
-        return DataLoader( self.test_set, self.batch_size, num_workers=2)
-    '''
+        return DataLoader( self.val_set, self.batch_size, num_workers=2)
+    
 
-
-class Model(pl.LightningModule):
-    def __init__(self, net, criterion, learning_rate, optimizer_class):
-        super().__init__()
-        self.lr = learning_rate
-        self.net = net
-        self.criterion = criterion
-        self.optimizer_class = optimizer_class
-
-    def configure_optimizers(self):
-        optimizer = self.optimizer_class(self.parameters(), lr=self.lr)
-        return optimizer
-
-    def prepare_batch(self, batch):
-        return batch['image'][tio.DATA], batch['label'][tio.DATA]
-
-    def infer_batch(self, batch):
-        x, y = self.prepare_batch(batch)
-        y_hat = self.net(x)
-        return y_hat, y
-
-    def training_step(self, batch, batch_idx):
-        y_hat, y = self.infer_batch(batch)
-        loss = self.criterion(y_hat, y)
-        self.log('train_loss', loss, prog_bar=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        y_hat, y = self.infer_batch(batch)
-        loss = self.criterion(y_hat, y)
-        self.log('val_loss', loss)
-        return loss
 
     
     
