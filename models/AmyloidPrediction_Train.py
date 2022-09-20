@@ -12,7 +12,7 @@ from tqdm import tqdm
 import monai #?? 
 
 import AmyloidPredictionDataModule 
-import AmyloidPredictionModel as Model 
+from AmyloidPredictionModel import AmyloidPredictionModel as Model
 
 import time 
 from datetime import datetime 
@@ -23,9 +23,10 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 # instantiate dataModule 
-data = AmyloidPredictionDataModule(
+data = AmyloidPredictionDataModule.AmyloidPredictionDataModule(
     batch_size = 16, # TODO: check this 
-    train_val_ratio = 0.8
+    train_val_ratio = 0.8,
+    root_path = "/home/wangl15@acct.upmchs.net/"
 )
 
 # prepare data 

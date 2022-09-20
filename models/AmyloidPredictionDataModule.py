@@ -90,7 +90,20 @@ class AmyloidPredictionDataModule( pl.LightningDataModule ):
                 PTID = ptid
             )
             
-            self.subjects.append(subject) 
+            self.subjects.append(subject)
+        
+        # create dummy subject
+        dummy_image1 = tio.ScalarImage( tensor = torch.rand(1,256,256,256))
+        dummy_image2 = tio.ScalarImage( tensor = torch.rand(1,256,256,256))
+        
+        subject = tio.Subject( 
+            transforms = None,
+            mprage = dummy_image1,
+            pet = dummy_image2,
+            PTID = "dummy"
+            )
+        
+        self.subjects.append( ) 
         
         ''' 
         self.test_subjects = [] 
